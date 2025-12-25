@@ -5,7 +5,6 @@ const { NewMessage } = require("telegram/events");
 const { Telegraf, Markup } = require("telegraf");
 const { Client } = require("@notionhq/client");
 
-// --- CONFIGURAÇÕES BÁSICAS ---
 const apiId = parseInt(process.env.API_ID || "35475841");
 const apiHash = process.env.HASH_API;
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -13,28 +12,20 @@ const seuChatId = process.env.CHAT_ID;
 const notionKey = process.env.NOTION_KEY;
 const sessionStringValue = process.env.SESSION_STRING;
 
-// --- 🗺️ MAPA DOS TIPSTERS ---
-// AQUI VOCÊ LIGA O ID DO TELEGRAM AO ID DA TABELA NO NOTION
 const CONFIG_CANAIS = {
-  // ID do Telegram (Esquerda)  :  ID da Tabela no .env (Direita)
-
-  "-1003408795462": process.env.NOTION_DB_PEREZ, // <--- Confirme se esse ID é do Perez
-  "-1003608213039": process.env.NOTION_DB_RARO, // <--- Confirme se esse ID é do Raro
-  "-1003093068325": process.env.NOTION_DB_PAGNELLE, // <--- Confirme se esse ID é do Pagnelle
+  "-1003408795462": process.env.NOTION_DB_PEREZ,
+  "-1003608213039": process.env.NOTION_DB_RARO,
+  "-1003093068325": process.env.NOTION_DB_PAGNELLE,
 };
 
-// Tabela de fallback (se adicionar um canal novo e esquecer de mapear acima)
 const DB_PADRAO = process.env.NOTION_DB_GERAL || process.env.NOTION_DB_PEREZ;
 
-// Cria a lista de IDs para o bot saber o que escutar
 const listaCanais = Object.keys(CONFIG_CANAIS);
 
-// --- INICIALIZAÇÃO ---
 const notionClient = new Client({ auth: notionKey });
 const session = new StringSession(sessionStringValue);
 const bot = new Telegraf(botToken);
 
-// --- FUNÇÃO 1: VERIFICAÇÃO (Manual via Fetch) ---
 async function linkJaSalvo(linkUrl, dbAlvo) {
   const linkLimpo = linkUrl.trim();
 
@@ -57,7 +48,6 @@ async function linkJaSalvo(linkUrl, dbAlvo) {
     });
 
     if (!response.ok) {
-      // Se falhar URL, tenta Texto
       if (response.status === 400) {
         const responseText = await fetch(url, {
           method: "POST",
@@ -84,27 +74,21 @@ async function linkJaSalvo(linkUrl, dbAlvo) {
   return false;
 }
 
-// --- FUNÇÃO 2: PROCESSAR SINAL ---
 async function processarSinal(client, texto, idCanal, linkEncontrado, dataMsg) {
   const nomeCasa = linkEncontrado.includes("betano") ? "🟠 BETANO" : "🟢 BET365";
 
-  // 1. Descobre qual tabela usar
   const dbDestino = CONFIG_CANAIS[idCanal] || DB_PADRAO;
 
-  // 2. Identifica o nome do Tipster para o Log
   let nomeTipster = "Desconhecido";
   if (dbDestino === process.env.NOTION_DB_PEREZ) nomeTipster = "PEREZ";
   else if (dbDestino === process.env.NOTION_DB_RARO) nomeTipster = "RARO";
   else if (dbDestino === process.env.NOTION_DB_PAGNELLE) nomeTipster = "PAGNELLE";
 
-  // 3. Verifica duplicidade NA TABELA DELE
   const jaExiste = await linkJaSalvo(linkEncontrado, dbDestino);
   if (jaExiste) {
-    // console.log(`🚫 Duplicado ignorado (${nomeTipster}).`);
     return;
   }
 
-  // 4. Pega nome do canal (do Telegram)
   let nomeCanalTelegram = idCanal;
   try {
     const entity = await client.getEntity(idCanal);
@@ -113,7 +97,6 @@ async function processarSinal(client, texto, idCanal, linkEncontrado, dataMsg) {
 
   console.log(`📤 Novo Sinal [${nomeTipster}]: ${linkEncontrado}`);
 
-  // 5. Salva e Notifica
   try {
     await notionClient.pages.create({
       parent: { database_id: dbDestino },
@@ -142,7 +125,6 @@ async function processarSinal(client, texto, idCanal, linkEncontrado, dataMsg) {
   }
 }
 
-// --- FUNÇÃO 3: HISTÓRICO ---
 async function buscarHistorico(client) {
   console.log("⏳ Lendo histórico (Perez, Raro, Pagnelle)...");
   const hoje8h = new Date();
@@ -171,7 +153,6 @@ async function buscarHistorico(client) {
   console.log("🏁 Monitoramento Ao Vivo Iniciado...\n");
 }
 
-// --- START ---
 (async () => {
   const client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5 });
   await client.connect();
