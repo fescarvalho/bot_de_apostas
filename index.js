@@ -4,6 +4,7 @@ const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const { Telegraf, Markup } = require("telegraf");
 const { Client } = require("@notionhq/client");
+const cron = require('node-cron');
 
 const apiId = parseInt(process.env.API_ID || "35475841");
 const apiHash = process.env.HASH_API;
@@ -181,3 +182,41 @@ async function buscarHistorico(client) {
     }
   }, new NewMessage({}));
 })();
+
+
+// Função para limpar uma tabela específica
+async function limparTabela(databaseId, nomeTabela) {
+    console.log(`🧹 Iniciando limpeza da tabela: ${nomeTabela}...`);
+    try {
+        // 1. Busca todos os itens da tabela
+        const response = await notionClient.databases.query({
+            database_id: databaseId,
+        });
+
+        // 2. Arquiva cada item encontrado
+        for (const page of response.results) {
+            await notionClient.pages.update({
+                page_id: page.id,
+                archived: true, // Isso "deleta" a linha da visualização
+            });
+        }
+        console.log(`✅ Tabela ${nomeTabela} limpa com sucesso!`);
+    } catch (error) {
+        console.error(`❌ Erro ao limpar tabela ${nomeTabela}:`, error.message);
+    }
+}
+
+// Agendamento: Roda todos os dias às 04:00 da manhã
+// Formato: (Minuto Hora Dia Mês Dia_da_Semana)
+cron.schedule('0 4 * * *', async () => {
+    console.log("⏰ Horário de limpeza atingido (04:00). Processando...");
+    
+    await limparTabela(process.env.NOTION_DB_PEREZ, "PEREZ");
+    await limparTabela(process.env.NOTION_DB_RARO, "RARO");
+    await limparTabela(process.env.NOTION_DB_PAGNELLE, "PAGNELLE");
+    
+    console.log("🏁 Faxina diária concluída!");
+}, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo" // Garante que rode no horário de Brasília
+});
