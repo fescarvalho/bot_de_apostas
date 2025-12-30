@@ -208,7 +208,7 @@ async function limparTabela(databaseId, nomeTabela) {
 
 // Agendamento: Roda todos os dias às 04:00 da manhã
 // Formato: (Minuto Hora Dia Mês Dia_da_Semana)
-cron.schedule('45 8 * * *', async () => {
+cron.schedule('00 5 * * *', async () => {
     console.log("⏰ Horário de limpeza atingido (04:00). Processando...");
     
     await limparTabela(process.env.NOTION_DB_PEREZ, "PEREZ");
@@ -220,3 +220,4 @@ cron.schedule('45 8 * * *', async () => {
     scheduled: true,
     timezone: "America/Sao_Paulo" // Garante que rode no horário de Brasília
 });
+
